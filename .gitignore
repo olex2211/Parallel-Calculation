@@ -5,3 +5,5 @@ matrices/
 results/
 
 # venv/
+
+.env
