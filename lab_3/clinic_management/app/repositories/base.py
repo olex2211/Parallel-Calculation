@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InternalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictException
+from app.core.exceptions import ConflictException, ServiceUnavailableException
 
 T = TypeVar("T")
 
@@ -24,6 +24,11 @@ class BaseRepository(ABC, Generic[T]):
             detail = str(exc.orig) if exc.orig else str(exc)
             raise ConflictException(
                 f"Database integrity error: {detail}"
+            ) from exc
+        except InternalError as exc:
+            await self.session.rollback()
+            raise ServiceUnavailableException(
+                f"Database error: {str(exc)}"
             ) from exc
         await self.session.refresh(entity)
         return entity

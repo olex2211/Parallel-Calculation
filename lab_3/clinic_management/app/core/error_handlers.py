@@ -2,17 +2,21 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
 from app.core.exceptions import (
     BusinessRuleException,
     ConflictException,
     EntityNotFoundException,
+    ServiceUnavailableException,
 )
 
 _EXCEPTION_MAP: dict[type[Exception], tuple[int, str]] = {
     EntityNotFoundException: (404, "NOT_FOUND"),
     BusinessRuleException:  (422, "BUSINESS_RULE_VIOLATION"),
     ConflictException:      (409, "CONFLICT"),
+    ServiceUnavailableException: (503, "SERVICE_UNAVAILABLE"),
+    OperationalError:       (503, "SERVICE_UNAVAILABLE"),
 }
 
 
@@ -41,6 +45,22 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def unhandled_exception_handler(
         request: Request, exc: Exception,
     ) -> JSONResponse:
+        # Перевірка чи це помилка з'єднання з БД (на випадок обгортки)
+        db_error_types = (OperationalError, ConnectionRefusedError)
+        is_db_error = (
+            isinstance(exc, db_error_types) or 
+            isinstance(getattr(exc, '__cause__', None), db_error_types) or
+            isinstance(getattr(exc, 'orig', None), db_error_types)
+        )
+        
+        if is_db_error:
+            return JSONResponse(
+                status_code=503,
+                content=_build_error_body(
+                    request, 503, "SERVICE_UNAVAILABLE",
+                    f"Database is unavailable: {str(exc.__class__.__name__)}",
+                ),
+            )
         return JSONResponse(
             status_code=500,
             content=_build_error_body(

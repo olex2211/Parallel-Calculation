@@ -13,3 +13,8 @@ class BusinessRuleException(Exception):
 class ConflictException(Exception):
     def __init__(self, message: str):
         super().__init__(message)
+
+
+class ServiceUnavailableException(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
