@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import Response
+from fastapi_cache.decorator import cache
 
 from app.api.dependencies import get_doctor_service
+from app.core.cache import invalidate_doctor
+from app.core.config import settings
 from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdate
 from app.services.doctor_service import DoctorService
 
@@ -21,6 +24,7 @@ async def get_all_doctors(
 
 
 @router.get("/{id}", response_model=DoctorResponse)
+@cache(expire=settings.CACHE_TTL, namespace="get_doctor")
 async def get_doctor(id: int, service: DoctorService = Depends(get_doctor_service)):
     return await service.get_by_id(id)
 
@@ -38,7 +42,9 @@ async def update_doctor(
     data: DoctorUpdate,
     service: DoctorService = Depends(get_doctor_service),
 ):
-    return await service.update(id, data)
+    result = await service.update(id, data)
+    await invalidate_doctor(id)
+    return result
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -46,4 +52,5 @@ async def delete_doctor(
     id: int, service: DoctorService = Depends(get_doctor_service)
 ):
     await service.delete(id)
+    await invalidate_doctor(id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

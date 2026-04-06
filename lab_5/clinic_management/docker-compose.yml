@@ -67,6 +67,20 @@ services:
       - clinic-network
 
   # ════════════════════════════════════════════
+  #  Redis (shared cache)
+  # ════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - clinic-network
+
+  # ════════════════════════════════════════════
   #  FastAPI microservices
   # ════════════════════════════════════════════
   patient-service:
@@ -74,8 +88,12 @@ services:
       context: ./patient-service
     env_file:
       - ./patient-service/.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres-patients:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -86,8 +104,12 @@ services:
       context: ./appointment-service
     env_file:
       - ./appointment-service/.env
+    environment:
+      REDIS_URL: redis://redis:6379/1
     depends_on:
       postgres-appointments:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
