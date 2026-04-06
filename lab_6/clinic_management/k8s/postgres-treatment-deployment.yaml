@@ -1,0 +1,71 @@
+# ════════════════════════════════════════════
+#  PostgreSQL for Treatment Service
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-treatment
+  labels:
+    app: postgres-treatment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-treatment
+  template:
+    metadata:
+      labels:
+        app: postgres-treatment
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "clinic_user"
+            - name: POSTGRES_PASSWORD
+              value: "clinic_password"
+            - name: POSTGRES_DB
+              value: "clinic_treatment"
+          volumeMounts:
+            - name: treatment-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - clinic_user
+                - -d
+                - clinic_treatment
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: treatment-data
+          persistentVolumeClaim:
+            claimName: treatment-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-treatment
+spec:
+  selector:
+    app: postgres-treatment
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: treatment-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi

@@ -1,0 +1,49 @@
+# ════════════════════════════════════════════
+#  Patient Service (FastAPI) — 2 replicas
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: patient-service
+  labels:
+    app: patient-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: patient-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: patient-service
+    spec:
+      containers:
+        - name: patient-service
+          image: patient-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8001
+          env:
+            - name: SERVICE_NAME
+              value: "patient-service"
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://clinic_user:clinic_password@postgres-patients:5432/clinic_patients"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: patient-service
+spec:
+  selector:
+    app: patient-service
+  ports:
+    - port: 8001
+      targetPort: 8001
+  type: ClusterIP

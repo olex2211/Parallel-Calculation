@@ -1,0 +1,51 @@
+# ════════════════════════════════════════════
+#  Billing Service (FastAPI)
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  labels:
+    app: billing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: billing-service
+    spec:
+      containers:
+        - name: billing-service
+          image: billing-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8004
+          env:
+            - name: SERVICE_NAME
+              value: "billing-service"
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://clinic_user:clinic_password@postgres-billing:5432/clinic_billing"
+            - name: APPOINTMENT_SERVICE_URL
+              value: "http://appointment-service:8002"
+            - name: TREATMENT_SERVICE_URL
+              value: "http://treatment-service:8003"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+spec:
+  selector:
+    app: billing-service
+  ports:
+    - port: 8004
+      targetPort: 8004
+  type: ClusterIP

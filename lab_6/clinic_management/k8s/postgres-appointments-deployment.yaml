@@ -1,0 +1,71 @@
+# ════════════════════════════════════════════
+#  PostgreSQL for Appointment Service
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-appointments
+  labels:
+    app: postgres-appointments
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-appointments
+  template:
+    metadata:
+      labels:
+        app: postgres-appointments
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "clinic_user"
+            - name: POSTGRES_PASSWORD
+              value: "clinic_password"
+            - name: POSTGRES_DB
+              value: "clinic_appointments"
+          volumeMounts:
+            - name: appointments-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - clinic_user
+                - -d
+                - clinic_appointments
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: appointments-data
+          persistentVolumeClaim:
+            claimName: appointments-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-appointments
+spec:
+  selector:
+    app: postgres-appointments
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: appointments-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi

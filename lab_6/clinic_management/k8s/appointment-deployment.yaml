@@ -1,0 +1,51 @@
+# ════════════════════════════════════════════
+#  Appointment Service (FastAPI)
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+  labels:
+    app: appointment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: appointment-service
+    spec:
+      containers:
+        - name: appointment-service
+          image: appointment-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8002
+          env:
+            - name: SERVICE_NAME
+              value: "appointment-service"
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://clinic_user:clinic_password@postgres-appointments:5432/clinic_appointments"
+            - name: PATIENT_SERVICE_URL
+              value: "http://patient-service:8001"
+            - name: REDIS_URL
+              value: "redis://redis:6379/1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-service
+spec:
+  selector:
+    app: appointment-service
+  ports:
+    - port: 8002
+      targetPort: 8002
+  type: ClusterIP

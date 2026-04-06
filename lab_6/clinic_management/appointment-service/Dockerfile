@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+RUN adduser --disabled-password --no-create-home appuser
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN sed -i 's/\r$//' entrypoint.sh && \
+    chmod +x entrypoint.sh
+
+USER appuser
+
+EXPOSE 8002
+
+ENTRYPOINT ["./entrypoint.sh"]

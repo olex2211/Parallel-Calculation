@@ -1,0 +1,71 @@
+# ════════════════════════════════════════════
+#  PostgreSQL for Patient Service
+# ════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-patients
+  labels:
+    app: postgres-patients
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-patients
+  template:
+    metadata:
+      labels:
+        app: postgres-patients
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "clinic_user"
+            - name: POSTGRES_PASSWORD
+              value: "clinic_password"
+            - name: POSTGRES_DB
+              value: "clinic_patients"
+          volumeMounts:
+            - name: patients-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - clinic_user
+                - -d
+                - clinic_patients
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: patients-data
+          persistentVolumeClaim:
+            claimName: patients-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-patients
+spec:
+  selector:
+    app: postgres-patients
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: patients-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
